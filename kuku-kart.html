@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>九九カートレース</title>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:linear-gradient(#bfe9ff 0 48%, #8fd36b 48% 100%);
+    color:#1d2630;
+    min-height:100vh;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:14px;text-align:center}
+  h1{margin:6px 0;font-size:clamp(28px,6vw,46px)}
+  .sub{font-size:18px;margin:4px 0 10px}
+  .panel{
+    background:rgba(255,255,255,.94);
+    border-radius:22px;
+    padding:16px;
+    box-shadow:0 7px 20px rgba(0,0,0,.16);
+  }
+  .setup h2{margin:6px}
+  .dan-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    margin:12px auto;
+    max-width:620px;
+  }
+  .dan{
+    border:3px solid #263238;
+    border-radius:14px;
+    background:#fff;
+    padding:12px 4px;
+    font-size:22px;
+    font-weight:800;
+    cursor:pointer;
+  }
+  .dan.selected{background:#ffe082;transform:scale(1.03)}
+  .start,.next,.restart,.home{
+    border:0;border-radius:16px;padding:14px 22px;margin:8px 5px;
+    font-size:21px;font-weight:900;cursor:pointer;
+  }
+  .start{background:#ffca28}
+  .next{background:#90caf9}
+  .restart{background:#a5d6a7}
+  .home{background:#e0e0e0}
+  .hidden{display:none!important}
+
+  .hud{
+    display:flex;justify-content:space-between;gap:10px;align-items:center;
+    font-weight:900;font-size:18px;margin-bottom:10px
+  }
+  .track{
+    position:relative;height:190px;border-radius:18px;overflow:hidden;
+    background:
+      linear-gradient(90deg, transparent 0 94%, #fff 94% 97%, #111 97% 100%),
+      repeating-linear-gradient(0deg,#555 0 42px,#666 42px 84px);
+    border:5px solid #fff;
+  }
+  .lane-line{
+    position:absolute;left:0;right:0;top:50%;
+    border-top:4px dashed rgba(255,255,255,.65)
+  }
+  .finish{
+    position:absolute;right:1%;top:0;bottom:0;width:34px;
+    background:
+      conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0/20px 20px;
+    opacity:.9;
+  }
+  .kart{
+    position:absolute;left:2%;font-size:54px;transition:left .45s ease,transform .2s;
+    filter:drop-shadow(0 3px 2px rgba(0,0,0,.25));
+  }
+  #player{top:18px}
+  #rival{bottom:18px}
+  .kart.boost{transform:scale(1.18) rotate(-3deg)}
+  .name{
+    position:absolute;left:8px;font-size:14px;font-weight:900;
+    background:rgba(255,255,255,.8);padding:3px 8px;border-radius:999px
+  }
+  .name.me{top:2px}
+  .name.rival{bottom:2px}
+
+  .question{font-size:clamp(40px,10vw,72px);font-weight:900;margin:16px 0 12px}
+  .choices{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:620px;margin:auto}
+  .choice{
+    border:4px solid #263238;background:#fff;border-radius:18px;
+    min-height:78px;font-size:clamp(28px,7vw,44px);font-weight:900;cursor:pointer;
+  }
+  .message{min-height:44px;font-size:25px;font-weight:900;margin:10px 0}
+  .result-big{font-size:clamp(40px,10vw,72px);font-weight:900;margin:12px}
+  .stars{font-size:42px;letter-spacing:5px}
+  @media(max-width:560px){
+    .dan-grid{grid-template-columns:repeat(2,1fr)}
+    .track{height:170px}
+    .kart{font-size:45px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏎️ 九九カートレース</h1>
+  <div class="sub">九九に こたえて、ゴールを めざそう！</div>
+
+  <div id="setup" class="panel setup">
+    <h2>どの だんで はしる？</h2>
+    <div class="dan-grid" id="danGrid"></div>
+    <button class="start" onclick="startGame()">スタート！ ▶</button>
+  </div>
+
+  <div id="game" class="panel hidden">
+    <div class="hud">
+      <div id="progress">1 / 10</div>
+      <div id="score">⭐ 0</div>
+    </div>
+
+    <div class="track">
+      <div class="lane-line"></div>
+      <div class="finish"></div>
+      <div class="name me">あなた</div>
+      <div class="name rival">ライバル</div>
+      <div id="player" class="kart">🏎️</div>
+      <div id="rival" class="kart">🚙</div>
+    </div>
+
+    <div id="question" class="question">3 × 4 = ?</div>
+    <div id="choices" class="choices"></div>
+    <div id="message" class="message"></div>
+    <button id="nextBtn" class="next hidden">つぎへ ▶</button>
+  </div>
+
+  <div id="result" class="panel hidden">
+    <h2 id="resultTitle">🏁 ゴール！</h2>
+    <div id="resultScore" class="result-big">8 / 10</div>
+    <div id="stars" class="stars">⭐⭐⭐</div>
+    <p id="resultMessage"></p>
+    <button class="restart" onclick="backToSetup()">だんを えらびなおす</button>
+    <button class="home" onclick="location.href='index.html'">🏠 もどる</button>
+  </div>
+</div>
+
+<script>
+const danGrid = document.getElementById("danGrid");
+let selectedDan = "mix";
+let questions = [];
+let index = 0;
+let points = 0;
+let playerPos = 2;
+let rivalPos = 2;
+let answered = false;
+
+const dans = [
+  {v:2,t:"2のだん"},{v:3,t:"3のだん"},{v:4,t:"4のだん"},{v:5,t:"5のだん"},
+  {v:6,t:"6のだん"},{v:7,t:"7のだん"},{v:8,t:"8のだん"},{v:9,t:"9のだん"},
+  {v:"mix",t:"🔥 2〜9 まぜまぜ"}
+];
+
+dans.forEach((d,i)=>{
+  const b=document.createElement("button");
+  b.className="dan"+(d.v==="mix"?" selected":"");
+  b.textContent=d.t;
+  b.onclick=()=>{
+    selectedDan=d.v;
+    document.querySelectorAll(".dan").forEach(x=>x.classList.remove("selected"));
+    b.classList.add("selected");
+  };
+  danGrid.appendChild(b);
+});
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function makeQuestions(){
+  let pool=[];
+  const ds = selectedDan==="mix" ? [2,3,4,5,6,7,8,9] : [selectedDan];
+  ds.forEach(a=>{
+    for(let b=1;b<=9;b++) pool.push({a:Number(a),b,ans:Number(a)*b});
+  });
+  return shuffle(pool).slice(0,10);
+}
+
+function makeChoices(ans){
+  const set=new Set([ans]);
+  const near=[ans-1,ans+1,ans-2,ans+2,ans-5,ans+5,ans-10,ans+10];
+  shuffle(near).forEach(n=>{if(n>0 && set.size<4) set.add(n)});
+  while(set.size<4){
+    const n=Math.max(1,ans + Math.floor(Math.random()*17)-8);
+    set.add(n);
+  }
+  return shuffle([...set]);
+}
+
+function beep(freq,dur=.16){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext;
+    const c=new C(),o=c.createOscillator(),g=c.createGain();
+    o.connect(g);g.connect(c.destination);o.frequency.value=freq;
+    g.gain.setValueAtTime(.08,c.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,c.currentTime+dur);
+    o.start();o.stop(c.currentTime+dur);
+  }catch(e){}
+}
+
+function startGame(){
+  questions=makeQuestions();
+  index=0;points=0;playerPos=2;rivalPos=2;
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  updateKarts();
+  showQuestion();
+}
+
+function updateKarts(){
+  document.getElementById("player").style.left=Math.min(playerPos,88)+"%";
+  document.getElementById("rival").style.left=Math.min(rivalPos,88)+"%";
+}
+
+function showQuestion(){
+  answered=false;
+  const q=questions[index];
+  document.getElementById("progress").textContent=(index+1)+" / "+questions.length;
+  document.getElementById("score").textContent="⭐ "+points;
+  document.getElementById("question").textContent=q.a+" × "+q.b+" = ?";
+  document.getElementById("message").textContent="";
+  document.getElementById("nextBtn").classList.add("hidden");
+
+  const box=document.getElementById("choices");
+  box.innerHTML="";
+  makeChoices(q.ans).forEach(v=>{
+    const b=document.createElement("button");
+    b.className="choice";b.textContent=v;
+    b.onclick=()=>answer(v,b,q.ans);
+    box.appendChild(b);
+  });
+}
+
+function answer(value,btn,ans){
+  if(answered)return;
+  answered=true;
+  document.querySelectorAll(".choice").forEach(b=>b.disabled=true);
+
+  if(value===ans){
+    points++;
+    playerPos += 8.2;
+    rivalPos += 4.7;
+    btn.style.background="#c8e6c9";
+    document.getElementById("message").textContent="⭕ せいかい！ ブースト！";
+    const p=document.getElementById("player");
+    p.classList.add("boost");
+    setTimeout(()=>p.classList.remove("boost"),350);
+    beep(760);
+  }else{
+    playerPos += 2.5;
+    rivalPos += 6.3;
+    btn.style.background="#ffcdd2";
+    document.querySelectorAll(".choice").forEach(b=>{
+      if(Number(b.textContent)===ans)b.style.background="#c8e6c9";
+    });
+    document.getElementById("message").textContent="おしい！ こたえは "+ans;
+    beep(250,.20);
+  }
+  updateKarts();
+  document.getElementById("score").textContent="⭐ "+points;
+  document.getElementById("nextBtn").classList.remove("hidden");
+}
+
+document.getElementById("nextBtn").onclick=()=>{
+  index++;
+  if(index<questions.length)showQuestion();
+  else finish();
+};
+
+function finish(){
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+  const win=points>=7;
+  document.getElementById("resultTitle").textContent=win?"🏆 ゴール！ しょうり！":"🏁 ゴール！";
+  document.getElementById("resultScore").textContent=points+" / 10";
+  let stars=points>=9?"⭐⭐⭐":points>=7?"⭐⭐":points>=5?"⭐":"";
+  document.getElementById("stars").textContent=stars;
+  document.getElementById("resultMessage").textContent=
+    points===10?"パーフェクト！ 九九マスター！":
+    points>=8?"すごい！ とても はやかった！":
+    points>=6?"いいレース！ もういちどで もっと はやくなるよ。":
+    "もういちど はしって、九九を おぼえよう！";
+}
+
+function backToSetup(){
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("setup").classList.remove("hidden");
+}
+</script>
+</body>
+</html>
