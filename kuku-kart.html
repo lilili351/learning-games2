@@ -1,4 +1,479 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>九九カートレースDX</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  background:linear-gradient(#aee5ff 0 42%,#8ed46f 42% 100%);
+  color:#17212b;
+  min-height:100vh;
+}
+.wrap{max-width:980px;margin:auto;padding:12px;text-align:center}
+h1{margin:5px 0;font-size:clamp(28px,6vw,46px)}
+.sub{font-size:18px;margin:4px 0 10px}
+.panel{
+  background:rgba(255,255,255,.95);
+  border-radius:22px;
+  padding:15px;
+  box-shadow:0 8px 24px rgba(0,0,0,.18);
+}
+.hidden{display:none!important}
+
+/* setup */
+.dan-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:9px;
+  max-width:650px;margin:12px auto
+}
+.dan{
+  border:3px solid #263238;border-radius:14px;background:#fff;
+  padding:11px 4px;font-size:21px;font-weight:900;cursor:pointer
+}
+.dan.selected{background:#ffe082;transform:scale(1.03)}
+.start,.next,.restart,.home{
+  border:0;border-radius:16px;padding:13px 21px;margin:7px 5px;
+  font-size:20px;font-weight:900;cursor:pointer
+}
+.start{background:#ffca28}.next{background:#90caf9}
+.restart{background:#a5d6a7}.home{background:#e0e0e0}
+
+/* HUD */
+.hud{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;
+  font-size:17px;font-weight:900;margin-bottom:9px
+}
+.hud>div{background:#f4f7f9;border-radius:12px;padding:7px}
+.itembox{
+  min-height:36px;background:#fff4c4;border:2px solid #333;
+  border-radius:12px;padding:6px 10px;font-size:18px;font-weight:900
+}
+
+/* Track */
+.race-area{
+  position:relative;
+  height:360px;
+  margin:7px auto 12px;
+  overflow:hidden;
+  border-radius:20px;
+  background:linear-gradient(#78c85b,#6cbe51);
+  border:5px solid #fff;
+}
+.track{
+  position:absolute;
+  left:8%;right:8%;top:9%;bottom:9%;
+  border:44px solid #595959;
+  border-radius:50%;
+  box-shadow:
+    inset 0 0 0 5px #f4f4f4,
+    0 0 0 5px #f4f4f4;
+}
+.inner{
+  position:absolute;left:25%;right:25%;top:30%;bottom:30%;
+  border-radius:50%;
+  background:#78c85b;
+}
+.finish{
+  position:absolute;
+  left:50%;top:5%;width:38px;height:88px;
+  transform:translateX(-50%);
+  background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0/18px 18px;
+  border:2px solid #fff;
+  z-index:2;
+}
+.lapboard{
+  position:absolute;left:50%;top:41%;transform:translate(-50%,-50%);
+  background:rgba(255,255,255,.93);border:3px solid #24313a;
+  border-radius:16px;padding:9px 15px;font-weight:900;z-index:3;
+}
+.rankboard{
+  position:absolute;right:10px;top:10px;background:rgba(255,255,255,.93);
+  border-radius:14px;padding:8px 10px;text-align:left;font-weight:900;z-index:4;
+  min-width:132px
+}
+.item-marker{
+  position:absolute;font-size:30px;z-index:2;filter:drop-shadow(0 2px 1px rgba(0,0,0,.25))
+}
+
+/* Kart = original CSS/SVG-like body */
+.kart{
+  position:absolute;
+  width:54px;height:32px;
+  transform-origin:50% 50%;
+  transition:left .45s linear,top .45s linear,transform .2s;
+  z-index:5;
+}
+.kart .body{
+  position:absolute;left:8px;top:6px;width:38px;height:21px;
+  border-radius:9px 12px 7px 7px;
+  border:3px solid #17212b;
+}
+.kart .nose{
+  position:absolute;right:0;top:11px;width:13px;height:12px;
+  clip-path:polygon(0 0,100% 50%,0 100%);
+  background:#17212b;
+}
+.kart .wheel{
+  position:absolute;width:12px;height:8px;background:#111;border-radius:5px;
+}
+.kart .w1{left:7px;top:0}.kart .w2{left:7px;bottom:0}
+.kart .w3{right:8px;top:0}.kart .w4{right:8px;bottom:0}
+.kart.me .body{background:#ffca28}
+.kart.r1 .body{background:#ef5350}
+.kart.r2 .body{background:#42a5f5}
+.kart.r3 .body{background:#66bb6a}
+.kart.boost{filter:drop-shadow(-12px 0 4px #ffb300)}
+.kart.hit{animation:shake .25s 2}
+@keyframes shake{0%,100%{margin-left:0}50%{margin-left:8px}}
+
+/* quiz */
+.question{font-size:clamp(38px,9vw,68px);font-weight:900;margin:12px 0 9px}
+.choices{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:10px;max-width:640px;margin:auto
+}
+.choice{
+  border:4px solid #263238;background:#fff;border-radius:17px;
+  min-height:72px;font-size:clamp(28px,7vw,42px);font-weight:900;cursor:pointer
+}
+.message{min-height:42px;font-size:24px;font-weight:900;margin:9px 0}
+.result-big{font-size:clamp(38px,9vw,66px);font-weight:900;margin:10px}
+.stars{font-size:38px;letter-spacing:4px}
+@media(max-width:620px){
+  .dan-grid{grid-template-columns:repeat(2,1fr)}
+  .race-area{height:300px}
+  .track{border-width:34px}
+  .rankboard{font-size:13px;min-width:110px}
+  .kart{width:46px;height:28px}
+  .kart .body{width:32px;height:18px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏁 九九カートレース DX</h1>
+  <div class="sub">九九に こたえて、3しゅうを はしりきろう！</div>
+
+  <div id="setup" class="panel">
+    <h2>どの だんで はしる？</h2>
+    <div id="danGrid" class="dan-grid"></div>
+    <button class="start" onclick="startGame()">レーススタート！ ▶</button>
+  </div>
+
+  <div id="game" class="panel hidden">
+    <div class="hud">
+      <div id="lapText">1 / 3しゅう</div>
+      <div id="score">⭐ 0</div>
+      <div id="itemBox" class="itembox">🎁 アイテム：なし</div>
+    </div>
+
+    <div class="race-area" id="raceArea">
+      <div class="track"></div>
+      <div class="inner"></div>
+      <div class="finish"></div>
+      <div class="lapboard" id="lapBoard">1 / 3しゅう</div>
+      <div class="rankboard" id="rankBoard"></div>
+
+      <div class="item-marker" style="left:18%;top:12%">❓</div>
+      <div class="item-marker" style="right:16%;top:25%">❓</div>
+      <div class="item-marker" style="right:20%;bottom:16%">❓</div>
+      <div class="item-marker" style="left:17%;bottom:18%">❓</div>
+
+      <div id="p0" class="kart me">
+        <span class="wheel w1"></span><span class="wheel w2"></span>
+        <span class="wheel w3"></span><span class="wheel w4"></span>
+        <span class="body"></span><span class="nose"></span>
+      </div>
+      <div id="p1" class="kart r1">
+        <span class="wheel w1"></span><span class="wheel w2"></span>
+        <span class="wheel w3"></span><span class="wheel w4"></span>
+        <span class="body"></span><span class="nose"></span>
+      </div>
+      <div id="p2" class="kart r2">
+        <span class="wheel w1"></span><span class="wheel w2"></span>
+        <span class="wheel w3"></span><span class="wheel w4"></span>
+        <span class="body"></span><span class="nose"></span>
+      </div>
+      <div id="p3" class="kart r3">
+        <span class="wheel w1"></span><span class="wheel w2"></span>
+        <span class="wheel w3"></span><span class="wheel w4"></span>
+        <span class="body"></span><span class="nose"></span>
+      </div>
+    </div>
+
+    <div id="question" class="question">3 × 4 = ?</div>
+    <div id="choices" class="choices"></div>
+    <div id="message" class="message"></div>
+    <button id="nextBtn" class="next hidden">つぎへ ▶</button>
+  </div>
+
+  <div id="result" class="panel hidden">
+    <h2 id="resultTitle">🏁 ゴール！</h2>
+    <div id="resultRank" class="result-big">1い！</div>
+    <div id="resultScore"></div>
+    <div id="stars" class="stars"></div>
+    <p id="resultMessage"></p>
+    <button class="restart" onclick="backToSetup()">もういちど</button>
+    <button class="home" onclick="location.href='index.html'">🏠 もどる</button>
+  </div>
+</div>
+
+<script>
+const dans=[
+  {v:2,t:"2のだん"},{v:3,t:"3のだん"},{v:4,t:"4のだん"},{v:5,t:"5のだん"},
+  {v:6,t:"6のだん"},{v:7,t:"7のだん"},{v:8,t:"8のだん"},{v:9,t:"9のだん"},
+  {v:"mix",t:"🔥 2〜9 まぜまぜ"}
+];
+let selectedDan="mix";
+let qIndex=0, score=0, questions=[];
+let racers=[
+  {name:"あなた",prog:0,id:"p0"},
+  {name:"レッド",prog:0,id:"p1"},
+  {name:"ブルー",prog:0,id:"p2"},
+  {name:"グリーン",prog:0,id:"p3"}
+];
+let heldItem=null;
+let answered=false;
+let lastItemGate=-1;
+
+const danGrid=document.getElementById("danGrid");
+dans.forEach(d=>{
+  const b=document.createElement("button");
+  b.className="dan"+(d.v==="mix"?" selected":"");
+  b.textContent=d.t;
+  b.onclick=()=>{
+    selectedDan=d.v;
+    document.querySelectorAll(".dan").forEach(x=>x.classList.remove("selected"));
+    b.classList.add("selected");
+  };
+  danGrid.appendChild(b);
+});
+
+function shuffle(a){
+  a=[...a];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function buildQuestions(){
+  let pool=[];
+  const ds=selectedDan==="mix"?[2,3,4,5,6,7,8,9]:[selectedDan];
+  // 3周×8問 = 24問
+  while(pool.length<24){
+    let block=[];
+    ds.forEach(a=>{
+      for(let b=1;b<=9;b++) block.push({a:Number(a),b,ans:Number(a)*b});
+    });
+    pool.push(...shuffle(block));
+  }
+  return pool.slice(0,24);
+}
+
+function makeChoices(ans){
+  const set=new Set([ans]);
+  const near=[ans-1,ans+1,ans-2,ans+2,ans-5,ans+5,ans-10,ans+10];
+  shuffle(near).forEach(n=>{if(n>0&&set.size<4)set.add(n)});
+  while(set.size<4){
+    const n=Math.max(1,ans+Math.floor(Math.random()*17)-8);
+    set.add(n);
+  }
+  return shuffle([...set]);
+}
+
+function beep(freq,d=.15){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext;
+    const c=new C(),o=c.createOscillator(),g=c.createGain();
+    o.connect(g);g.connect(c.destination);o.frequency.value=freq;
+    g.gain.setValueAtTime(.07,c.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,c.currentTime+d);
+    o.start();o.stop(c.currentTime+d);
+  }catch(e){}
+}
+
+/* Oval path. Returns x,y and direction angle so the kart faces forward. */
+function pointOnOval(progress, lane=0){
+  const t=(progress%1)*Math.PI*2 - Math.PI/2;
+  const cx=50, cy=50;
+  const rx=35-lane*2.2, ry=34-lane*2.2;
+  const x=cx+rx*Math.cos(t);
+  const y=cy+ry*Math.sin(t);
+  // tangent vector derivative: dx=-rx sin(t), dy=ry cos(t)
+  const dx=-rx*Math.sin(t), dy=ry*Math.cos(t);
+  const angle=Math.atan2(dy,dx)*180/Math.PI;
+  return {x,y,angle};
+}
+
+function placeRacers(){
+  racers.forEach((r,i)=>{
+    const p=pointOnOval(r.prog,i*0.5);
+    const el=document.getElementById(r.id);
+    el.style.left=`calc(${p.x}% - 27px)`;
+    el.style.top=`calc(${p.y}% - 16px)`;
+    el.style.transform=`rotate(${p.angle}deg)`;
+  });
+  updateRank();
+  const lap=Math.min(3,Math.floor(racers[0].prog)+1);
+  document.getElementById("lapText").textContent=lap+" / 3しゅう";
+  document.getElementById("lapBoard").textContent=lap+" / 3しゅう";
+}
+
+function updateRank(){
+  const sorted=[...racers].sort((a,b)=>b.prog-a.prog);
+  const icons={"あなた":"🟨","レッド":"🟥","ブルー":"🟦","グリーン":"🟩"};
+  document.getElementById("rankBoard").innerHTML=
+    sorted.map((r,i)=>`${i+1}い ${icons[r.name]} ${r.name}`).join("<br>");
+}
+
+function maybeGetItem(){
+  // 4つのアイテム地点/周を通過すると取得
+  const gate=Math.floor(racers[0].prog*4);
+  if(gate>lastItemGate){
+    lastItemGate=gate;
+    const items=[
+      {key:"boost",name:"⚡ ターボ"},
+      {key:"star",name:"⭐ スーパーブースト"},
+      {key:"shield",name:"🛡️ シールド"},
+      {key:"rocket",name:"🚀 ロケット"}
+    ];
+    heldItem=items[Math.floor(Math.random()*items.length)];
+    document.getElementById("itemBox").textContent="🎁 "+heldItem.name;
+    document.getElementById("message").textContent="🎁 アイテムゲット！ "+heldItem.name;
+  }
+}
+
+function useItemOnCorrect(){
+  if(!heldItem)return 0;
+  let extra=0;
+  if(heldItem.key==="boost") extra=.08;
+  if(heldItem.key==="star") extra=.13;
+  if(heldItem.key==="rocket"){
+    const rank=[...racers].sort((a,b)=>b.prog-a.prog).findIndex(r=>r===racers[0])+1;
+    extra=rank>=3?.16:.07;
+  }
+  if(heldItem.key==="shield") extra=.04;
+  document.getElementById("message").textContent="⭕ せいかい！ "+heldItem.name+" はつどう！";
+  heldItem=null;
+  document.getElementById("itemBox").textContent="🎁 アイテム：なし";
+  return extra;
+}
+
+function startGame(){
+  questions=buildQuestions();
+  qIndex=0;score=0;heldItem=null;lastItemGate=-1;
+  racers.forEach((r,i)=>r.prog=-i*.015);
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  document.getElementById("itemBox").textContent="🎁 アイテム：なし";
+  placeRacers();
+  showQuestion();
+}
+
+function showQuestion(){
+  answered=false;
+  if(qIndex>=questions.length || racers[0].prog>=3){
+    finish();return;
+  }
+  const q=questions[qIndex];
+  document.getElementById("score").textContent="⭐ "+score;
+  document.getElementById("question").textContent=q.a+" × "+q.b+" = ?";
+  document.getElementById("message").textContent="";
+  document.getElementById("nextBtn").classList.add("hidden");
+  const box=document.getElementById("choices");box.innerHTML="";
+  makeChoices(q.ans).forEach(v=>{
+    const b=document.createElement("button");
+    b.className="choice";b.textContent=v;
+    b.onclick=()=>answer(v,b,q.ans);
+    box.appendChild(b);
+  });
+}
+
+function moveRivals(){
+  racers[1].prog+=.075+Math.random()*.035;
+  racers[2].prog+=.070+Math.random()*.040;
+  racers[3].prog+=.068+Math.random()*.045;
+}
+
+function answer(value,btn,ans){
+  if(answered)return;
+  answered=true;
+  document.querySelectorAll(".choice").forEach(b=>b.disabled=true);
+
+  if(value===ans){
+    score++;
+    let base=.11;
+    let extra=useItemOnCorrect();
+    racers[0].prog+=base+extra;
+    btn.style.background="#c8e6c9";
+    if(!extra)document.getElementById("message").textContent="⭕ せいかい！ 加速！";
+    document.getElementById("p0").classList.add("boost");
+    setTimeout(()=>document.getElementById("p0").classList.remove("boost"),350);
+    beep(780);
+  }else{
+    let penalty=.035;
+    if(heldItem && heldItem.key==="shield"){
+      penalty=.075;
+      document.getElementById("message").textContent="🛡️ シールドで へいき！ こたえは "+ans;
+      heldItem=null;
+      document.getElementById("itemBox").textContent="🎁 アイテム：なし";
+    }else{
+      racers[0].prog+=penalty;
+      document.getElementById("message").textContent="おしい！ こたえは "+ans;
+    }
+    btn.style.background="#ffcdd2";
+    document.querySelectorAll(".choice").forEach(b=>{
+      if(Number(b.textContent)===ans)b.style.background="#c8e6c9";
+    });
+    document.getElementById("p0").classList.add("hit");
+    setTimeout(()=>document.getElementById("p0").classList.remove("hit"),500);
+    beep(240,.20);
+  }
+
+  moveRivals();
+  racers.forEach(r=>r.prog=Math.min(r.prog,3.02));
+  placeRacers();
+  maybeGetItem();
+  document.getElementById("score").textContent="⭐ "+score;
+  document.getElementById("nextBtn").classList.remove("hidden");
+}
+
+document.getElementById("nextBtn").onclick=()=>{
+  qIndex++;
+  if(qIndex>=24 || racers.some(r=>r.prog>=3)){
+    finish();
+  }else showQuestion();
+};
+
+function finish(){
+  // 24問終了時は距離順、誰か3周した時も距離順
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+  const sorted=[...racers].sort((a,b)=>b.prog-a.prog);
+  const rank=sorted.findIndex(r=>r.name==="あなた")+1;
+  document.getElementById("resultTitle").textContent=rank===1?"🏆 1いで ゴール！":"🏁 ゴール！";
+  document.getElementById("resultRank").textContent=rank+"い！";
+  document.getElementById("resultScore").textContent="九九："+score+"もん せいかい";
+  document.getElementById("stars").textContent=rank===1?"⭐⭐⭐":rank===2?"⭐⭐":"⭐";
+  document.getElementById("resultMessage").textContent=
+    rank===1?"すごい！ 九九で かそくして しょうり！":
+    rank===2?"あとすこし！ もういちど はしろう！":
+    "くりかえすほど はやくなるよ！";
+}
+
+function backToSetup(){
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("setup").classList.remove("hidden");
+}
+</script>
+</body>
+</html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
