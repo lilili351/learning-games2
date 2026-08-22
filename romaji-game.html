@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3年生 ローマ字ゲーム</title>
+<style>
+  body{
+    margin:0;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:#fff8e7;
+    color:#222;
+  }
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding:22px;
+    text-align:center;
+  }
+  h1{font-size:clamp(28px,6vw,46px); margin:10px 0;}
+  .card{
+    background:white;
+    border-radius:22px;
+    padding:24px;
+    box-shadow:0 6px 18px rgba(0,0,0,.10);
+    margin-top:18px;
+  }
+  .status{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    font-size:18px;
+    font-weight:700;
+  }
+  .kana{
+    font-size:clamp(58px,14vw,100px);
+    font-weight:800;
+    margin:28px 0 18px;
+  }
+  .question{
+    font-size:22px;
+    margin-bottom:20px;
+  }
+  .choices{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  button{
+    font:inherit;
+    cursor:pointer;
+  }
+  .choice{
+    border:3px solid #333;
+    background:#fff;
+    border-radius:18px;
+    padding:20px 8px;
+    font-size:clamp(28px,7vw,44px);
+    font-weight:800;
+    min-height:88px;
+  }
+  .choice:hover{transform:translateY(-1px);}
+  .choice:disabled{cursor:default;}
+  .message{
+    min-height:48px;
+    font-size:28px;
+    font-weight:800;
+    margin:18px 0 6px;
+  }
+  .next,.restart,.home{
+    border:0;
+    border-radius:16px;
+    padding:14px 24px;
+    font-size:22px;
+    font-weight:800;
+    margin:10px 6px 0;
+  }
+  .next{background:#ffe082;}
+  .restart{background:#c8e6c9;}
+  .home{background:#e0e0e0;}
+  .hidden{display:none;}
+  .result-big{
+    font-size:clamp(46px,11vw,78px);
+    font-weight:900;
+    margin:20px 0;
+  }
+  @media (max-width:520px){
+    .choices{grid-template-columns:1fr;}
+    .choice{min-height:70px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🚗 ローマ字チャレンジ</h1>
+  <p>ひらがなに あう ローマ字を えらぼう！</p>
+
+  <div id="game" class="card">
+    <div class="status">
+      <div id="progress">1 / 10</div>
+      <div id="score">⭐ 0</div>
+    </div>
+
+    <div id="kana" class="kana">か</div>
+    <div class="question">どの ローマ字かな？</div>
+    <div id="choices" class="choices"></div>
+    <div id="message" class="message"></div>
+    <button id="nextBtn" class="next hidden">つぎへ ▶</button>
+  </div>
+
+  <div id="result" class="card hidden">
+    <h2>🎉 おわり！</h2>
+    <div id="resultScore" class="result-big">10 / 10</div>
+    <p id="resultMessage"></p>
+    <button class="restart" onclick="startGame()">もういちど</button>
+    <button class="home" onclick="location.href='index.html'">🏠 もどる</button>
+  </div>
+</div>
+
+<script>
+const allQuestions = [
+  {kana:"あ", correct:"a", wrong:["i","u","e"]},
+  {kana:"い", correct:"i", wrong:["a","e","o"]},
+  {kana:"う", correct:"u", wrong:["a","i","o"]},
+  {kana:"え", correct:"e", wrong:["i","u","o"]},
+  {kana:"お", correct:"o", wrong:["a","u","e"]},
+  {kana:"か", correct:"ka", wrong:["ki","ku","ke"]},
+  {kana:"き", correct:"ki", wrong:["ka","ku","ko"]},
+  {kana:"く", correct:"ku", wrong:["ka","ki","ke"]},
+  {kana:"け", correct:"ke", wrong:["ki","ku","ko"]},
+  {kana:"こ", correct:"ko", wrong:["ka","ku","ke"]},
+  {kana:"さ", correct:"sa", wrong:["shi","su","se"]},
+  {kana:"し", correct:"shi", wrong:["sa","su","so"]},
+  {kana:"す", correct:"su", wrong:["sa","shi","se"]},
+  {kana:"せ", correct:"se", wrong:["shi","su","so"]},
+  {kana:"そ", correct:"so", wrong:["sa","su","se"]},
+  {kana:"た", correct:"ta", wrong:["chi","tsu","te"]},
+  {kana:"ち", correct:"chi", wrong:["ta","tsu","to"]},
+  {kana:"つ", correct:"tsu", wrong:["ta","chi","te"]},
+  {kana:"て", correct:"te", wrong:["chi","tsu","to"]},
+  {kana:"と", correct:"to", wrong:["ta","tsu","te"]}
+];
+
+let questions = [];
+let index = 0;
+let points = 0;
+let answered = false;
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function beep(freq){
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    const ctx=new AudioCtx();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value=freq;
+    gain.gain.setValueAtTime(0.08,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.18);
+    osc.start(); osc.stop(ctx.currentTime+0.18);
+  }catch(e){}
+}
+
+function startGame(){
+  questions=shuffle(allQuestions).slice(0,10);
+  index=0; points=0; answered=false;
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  showQuestion();
+}
+
+function showQuestion(){
+  answered=false;
+  const q=questions[index];
+  document.getElementById("progress").textContent=(index+1)+" / "+questions.length;
+  document.getElementById("score").textContent="⭐ "+points;
+  document.getElementById("kana").textContent=q.kana;
+  document.getElementById("message").textContent="";
+  document.getElementById("nextBtn").classList.add("hidden");
+
+  const choices=shuffle([q.correct,...q.wrong]);
+  const box=document.getElementById("choices");
+  box.innerHTML="";
+  choices.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="choice";
+    b.textContent=c;
+    b.onclick=()=>answer(c,b,q.correct);
+    box.appendChild(b);
+  });
+}
+
+function answer(value,button,correct){
+  if(answered) return;
+  answered=true;
+  document.querySelectorAll(".choice").forEach(b=>b.disabled=true);
+
+  if(value===correct){
+    points++;
+    button.style.background="#c8e6c9";
+    document.getElementById("message").textContent="⭕ せいかい！";
+    beep(720);
+  }else{
+    button.style.background="#ffcdd2";
+    document.querySelectorAll(".choice").forEach(b=>{
+      if(b.textContent===correct) b.style.background="#c8e6c9";
+    });
+    document.getElementById("message").textContent="おしい！ こたえは「"+correct+"」";
+    beep(260);
+  }
+  document.getElementById("score").textContent="⭐ "+points;
+  document.getElementById("nextBtn").classList.remove("hidden");
+}
+
+document.getElementById("nextBtn").onclick=()=>{
+  index++;
+  if(index<questions.length){
+    showQuestion();
+  }else{
+    finish();
+  }
+};
+
+function finish(){
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+  document.getElementById("resultScore").textContent=points+" / "+questions.length;
+  let msg="よく がんばりました！";
+  if(points===10) msg="🏆 パーフェクト！ すごい！";
+  else if(points>=8) msg="🌟 もうすこしで パーフェクト！";
+  else if(points>=5) msg="👍 いいちょうし！ もういちど やってみよう。";
+  else msg="🌱 だいじょうぶ。くりかえすと おぼえられるよ。";
+  document.getElementById("resultMessage").textContent=msg;
+}
+
+startGame();
+</script>
+</body>
+</html>

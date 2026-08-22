@@ -1,24 +1,59 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>学習ゲームセンター</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学習ゲームセンター</title>
+<style>
+  body{
+    margin:0;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:#fff8e7;
+    color:#222;
+  }
+  .wrap{max-width:760px;margin:auto;padding:24px;text-align:center;}
+  h1{font-size:clamp(30px,7vw,48px);margin:12px 0;}
+  p{font-size:20px;}
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:16px;
+    margin-top:26px;
+  }
+  .card{
+    display:block;
+    text-decoration:none;
+    color:#222;
+    background:white;
+    border:3px solid #333;
+    border-radius:22px;
+    padding:25px 12px;
+    font-size:clamp(24px,6vw,34px);
+    font-weight:800;
+    box-shadow:0 5px 12px rgba(0,0,0,.08);
+  }
+  .disabled{
+    opacity:.45;
+    pointer-events:none;
+  }
+  .wide{grid-column:1/-1;}
+  small{display:block;font-size:15px;font-weight:500;margin-top:6px;}
+  @media(max-width:520px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
+</style>
 </head>
-
-<body style="text-align:center; font-family:sans-serif; background:#fff8e7;">
-
+<body>
+<div class="wrap">
   <h1>🎮 学習ゲームセンター 🎮</h1>
-
   <p>やりたい がくしゅうを えらんでね！</p>
 
-  <h2>📕 こくご</h2>
-  <h2>🔢 さんすう</h2>
-  <h2>🌱 じりつかつどう</h2>
-
-  <br>
-
-  <p>これからゲームがふえていくよ！</p>
-
+  <div class="grid">
+    <div class="card disabled">🌷 1ねんせい<small>じゅんびちゅう</small></div>
+    <a class="card" href="romaji-game.html">🚗 3年生<small>ローマ字チャレンジ</small></a>
+    <div class="card disabled">⭐ 4年生<small>準備中</small></div>
+    <div class="card disabled">🚀 5年生<small>準備中</small></div>
+    <div class="card disabled">🏆 6年生<small>準備中</small></div>
+    <div class="card disabled wide">🌱 みんな・自立活動<small>準備中</small></div>
+  </div>
+</div>
 </body>
 </html>
